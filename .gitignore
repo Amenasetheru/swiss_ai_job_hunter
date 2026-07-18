@@ -1,0 +1,52 @@
+# Ignore the project virtual environment
+.venv/
+
+# Ignore private environment variable files
+.env
+.env.local
+.env.*.local
+
+# Keep the public environment template tracked
+!.env.example
+
+# Ignore Python bytecode files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore Python test and quality caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Ignore Jupyter temporary checkpoints
+.ipynb_checkpoints/
+
+# Ignore macOS system files
+.DS_Store
+
+# Ignore editor-specific local settings
+.vscode/
+.idea/
+
+# Ignore local log files
+*.log
+
+# Ignore local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Ignore private local project data
+data/cv/*
+data/jobs/*
+data/companies/*
+data/knowledge/*
+
+# Keep the data directory structure tracked
+!data/cv/.gitkeep
+!data/jobs/.gitkeep
+!data/companies/.gitkeep
+!data/knowledge/.gitkeep
