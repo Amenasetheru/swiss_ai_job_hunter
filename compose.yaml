@@ -1,0 +1,77 @@
+# Define all containerized services required by the project
+services:
+  # Define the PostgreSQL database service
+  postgres:
+    # Use the official PostgreSQL 17 image
+    image: postgres:17
+
+    # Restart PostgreSQL automatically unless it was explicitly stopped
+    restart: unless-stopped
+
+    # Provide initialization variables to the PostgreSQL container
+    environment:
+      # Define the database created during the first initialization
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be defined}
+
+      # Define the PostgreSQL administrative initialization user
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be defined}
+
+      # Define the PostgreSQL administrative initialization password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be defined}
+
+      # Provide the restricted application username to the initialization script
+      APP_DB_USER: ${APP_DB_USER:?APP_DB_USER must be defined}
+
+      # Provide the restricted application password to the initialization script
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD must be defined}
+
+    # Expose PostgreSQL to applications running directly on the Mac
+    ports:
+      # Map the configurable Mac port to PostgreSQL port 5432
+      - "${POSTGRES_PORT:-5432}:5432"
+
+    # Configure persistent storage and initialization scripts
+    volumes:
+      # Persist PostgreSQL data independently from the container lifecycle
+      - postgres_data:/var/lib/postgresql/data
+
+      # Mount initialization scripts as read-only files
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+
+    # Check whether PostgreSQL is ready to accept connections
+    healthcheck:
+      # Execute the official PostgreSQL readiness command inside the container
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+
+      # Run the health check every five seconds
+      interval: 5s
+
+      # Stop one health-check attempt after five seconds
+      timeout: 5s
+
+      # Allow five consecutive failures before marking the service unhealthy
+      retries: 5
+
+      # Allow PostgreSQL fifteen seconds for its first initialization
+      start_period: 15s
+
+    # Connect PostgreSQL to the private backend network
+    networks:
+      # Attach the service to the backend network
+      - backend
+
+# Define persistent volumes managed by Docker
+volumes:
+  # Store PostgreSQL database files between container recreations
+  postgres_data:
+    # Use Docker's standard local volume driver
+    driver: local
+
+# Define private networks managed by Docker
+networks:
+  # Provide isolated communication for future backend services
+  backend:
+    # Use Docker's standard bridge networking driver
+    driver: bridge
