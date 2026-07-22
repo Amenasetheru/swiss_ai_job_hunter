@@ -7,7 +7,8 @@ from sqlalchemy import (
 )  # Import migration engine and pooling tools
 
 from app.core.settings import get_settings  # Import the validated project configuration
-from app.db.base import Base  # Import the shared ORM metadata registry
+from app.db.base import Base
+from app.models import Job  # noqa: F401  # Register ORM models in Base.metadata  # Import the shared ORM metadata registry
 
 
 config = context.config  # Retrieve the Alembic configuration loaded from alembic.ini
