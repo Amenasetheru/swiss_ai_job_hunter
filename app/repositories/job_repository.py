@@ -1,9 +1,6 @@
 import uuid  # Import the UUID type used by Job primary identifiers
 
-from sqlalchemy import (
-    Select,
-    select,
-)  # Import the typed SQL SELECT construct and its factory
+from sqlalchemy import Select, func, select  # Import typed SELECT and aggregation tools
 from sqlalchemy.exc import (
     IntegrityError,
 )  # Import SQLAlchemy's database integrity exception
@@ -21,33 +18,19 @@ class JobRepository:
     def __init__(self, session: Session) -> None:
         """Initialize the repository with one active SQLAlchemy session."""
 
-        self._session = (
-            session  # Store the request-scoped session for repository operations
-        )
+        self._session = session
 
     def create(self, job: Job) -> Job:
         """Add one Job entity to the current transaction."""
 
-        self._session.add(job)  # Register the Job object as pending for insertion
+        self._session.add(job)
 
         try:
-            self._session.flush()  # Send the INSERT while keeping the transaction open
+            self._session.flush()
         except IntegrityError as error:
-            constraint_name = self._extract_constraint_name(
-                error
-            )  # Read the PostgreSQL constraint name
+            self._raise_translated_integrity_error(error)
 
-            if constraint_name in {
-                "uq_jobs_url",
-                "uq_jobs_source_external_id",
-            }:
-                raise DuplicateJobError(
-                    constraint_name=constraint_name,
-                ) from error
-
-            raise  # Preserve unexpected integrity failures without hiding their cause
-
-        return job  # Return the ORM object populated with generated values
+        return job
 
     def get_by_id(self, job_id: uuid.UUID) -> Job | None:
         """Return one job by primary key or None when it does not exist."""
@@ -89,10 +72,20 @@ class JobRepository:
 
         return list(self._session.scalars(statement).all())
 
+    def count(self) -> int:
+        """Return the total number of persisted Job records."""
+
+        statement = select(func.count(Job.id))
+
+        return self._session.scalar(statement) or 0
+
     def update(self, job: Job) -> Job:
         """Flush pending changes made to an already managed Job entity."""
 
-        self._session.flush()
+        try:
+            self._session.flush()
+        except IntegrityError as error:
+            self._raise_translated_integrity_error(error)
 
         return job
 
@@ -107,16 +100,33 @@ class JobRepository:
 
         self._session.flush()
 
+    @classmethod
+    def _raise_translated_integrity_error(
+        cls,
+        error: IntegrityError,
+    ) -> None:
+        """Translate known unique-constraint failures and preserve unknown errors."""
+
+        constraint_name = cls._extract_constraint_name(error)
+
+        if constraint_name in {
+            "uq_jobs_url",
+            "uq_jobs_source_external_id",
+        }:
+            raise DuplicateJobError(
+                constraint_name=constraint_name,
+            ) from error
+
+        raise error
+
     @staticmethod
     def _extract_constraint_name(
         error: IntegrityError,
     ) -> str | None:
         """Extract a PostgreSQL constraint name from an integrity error."""
 
-        original_error = error.orig  # Access the original psycopg database exception
-        diagnostic = getattr(
-            original_error, "diag", None
-        )  # Read PostgreSQL diagnostics safely
+        original_error = error.orig
+        diagnostic = getattr(original_error, "diag", None)
 
         if diagnostic is None:
             return None

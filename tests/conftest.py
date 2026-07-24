@@ -44,3 +44,20 @@ def job_repository(db_session: Session) -> JobRepository:
     """Provide a JobRepository connected to the current test session."""
 
     return JobRepository(db_session)  # Inject the test session into the repository
+
+
+@pytest.fixture
+def job_service(
+    db_session: Session,
+    job_repository: JobRepository,
+):
+    """Provide a JobService connected to the current integration-test transaction."""
+
+    from app.services import (
+        JobService,
+    )  # Import the service only when the fixture is requested
+
+    return JobService(  # Construct the business service with injected dependencies
+        session=db_session,
+        repository=job_repository,
+    )

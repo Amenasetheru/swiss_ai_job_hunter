@@ -309,3 +309,34 @@ def test_repository_rejects_invalid_pagination(
             offset=offset,
             limit=limit,
         )
+
+
+def test_repository_counts_jobs(
+    db_session: Session,
+    job_repository: JobRepository,
+) -> None:
+    """Verify that count returns the complete number of persisted Jobs."""
+
+    jobs = [
+        _build_job(
+            external_id=f"count-job-{index}",
+            title=f"Counted AI Engineer {index}",
+            url=f"https://example.com/jobs/repository-count-{index}",
+        )
+        for index in range(3)
+    ]
+
+    for job in jobs:
+        job_repository.create(job)
+
+    db_session.commit()
+
+    assert job_repository.count() == 3
+
+
+def test_repository_count_returns_zero_when_empty(
+    job_repository: JobRepository,
+) -> None:
+    """Verify that count returns zero when no Job records exist."""
+
+    assert job_repository.count() == 0
